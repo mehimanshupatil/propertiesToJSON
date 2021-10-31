@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test</title>
+
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+            crossorigin="anonymous"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/pretty-checkbox/3.0.3/pretty-checkbox.min.css"
+            integrity="sha512-kz4Ae66pquz4nVE5ytJyKfPDkQyHSggaDtT1v8oLfOd8bB+ZgZXNLaxex99MNu4fdCsWmi58mhLtfGk5RgfcOw=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
+        <style>
+            body {
+                display: flex;
+                font-family: monospace;
+            }
+            pre {
+                white-space: pre-wrap;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body
+        class="vh-100 overflow-hidden"
+        onload="run({ convertToJsonTree:false,
+            parseNumber:false,
+            parseBooleanNullUndefined:false})"
+    >
+        <div class="row flex-grow-1 m-3">
+            <div class="col-lg-5">
+                <textarea class="w-100 h-100" id="inputTxt">
+# You are reading the ".properties" file.&#13;&#10;complexObject.booleans.trueValue=True&#13;&#10;complexObject.booleans.falseValue=false&#13;&#10;complexObject.numbers.integerValue=11&#13;&#10;complexObject.numbers.doubleValue=11.0&#13;&#10;complexObject.text=text &#13;&#10;simpleText=text2&#13;&#10;complexObject.nullValue=null&#13;&#10;complexObject.empty=</textarea
+                >
+            </div>
+            <div class="col-lg-2 row">
+                <div>
+                    Print json as multillevel =
+                    <div class="pretty p-default p-curve p-toggle">
+                        <input
+                            type="checkbox"
+                            name="convertToJsonTree"
+                            class="CheckBoxClass"
+                        />
+                        <div class="state p-success p-on">
+                            <label>true</label>
+                        </div>
+                        <div class="state p-danger p-off">
+                            <label>false</label>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    Parse number value =
+                    <div class="pretty p-default p-curve p-toggle">
+                        <input
+                            type="checkbox"
+                            name="parseNumber"
+                            class="CheckBoxClass"
+                        />
+                        <div class="state p-success p-on">
+                            <label>true</label>
+                        </div>
+                        <div class="state p-danger p-off">
+                            <label>false</label>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    Parse boolean/undefined/null value =
+                    <div class="pretty p-default p-curve p-toggle">
+                        <input
+                            type="checkbox"
+                            name="parseBooleanNullUndefined"
+                            class="CheckBoxClass"
+                        />
+                        <div class="state p-success p-on">
+                            <label>true</label>
+                        </div>
+                        <div class="state p-danger p-off">
+                            <label>false</label>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="change()"
+                    >
+                        Parse
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-5 overflow-auto"><pre id="codeTag"></pre></div>
+        </div>
+        <script type="module">
+            import propertiesToJSON from './dist/index.es.js';
+
+            function run({
+                convertToJsonTree,
+                parseNumber,
+                parseBooleanNullUndefined,
+            }) {
+                const data = document.getElementById('inputTxt').value;
+                const json = propertiesToJSON(data, {
+                    jsonAsString: false,
+                    convertToJsonTree,
+                    parseNumber,
+                    parseBooleanNullUndefined,
+                });
+                const codeTag = document.getElementById('codeTag');
+                codeTag.textContent = JSON.stringify(json, undefined, 2);
+            }
+
+            function change() {
+                const obj = Array.from(
+                    document.querySelectorAll('.CheckBoxClass')
+                )
+                    .map((elem) => ({ [elem.name]: elem.checked }))
+                    .reduce((prev, curr) => ({ ...prev, ...curr }), {});
+                run(obj);
+            }
+            window.change = change;
+            window.run = change;
+        </script>
+    </body>
+</html>
