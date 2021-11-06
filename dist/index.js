@@ -1,31 +1,6 @@
 'use strict';
 
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-
-var __assign = function() {
-    __assign = Object.assign || function __assign(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-
+// @ts-nocheck
 var defaultValue = function (v, d) { return (v === undefined ? d : v); };
 var typesMap = {
     "false": false,
@@ -56,9 +31,7 @@ var propertiesToJSON = function (str, options) {
         // Split by line breaks.
         .split('\n')
         // Remove commented lines:
-        .filter(function (line) {
-        return /(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line;
-    })
+        .filter(function (line) { return (/(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line); })
         // Create the JSON:
         .reduce(function (obj, line) {
         // Replace only '=' that are not escaped with '\' to handle separator inside key
@@ -69,9 +42,7 @@ var propertiesToJSON = function (str, options) {
             // Remove not needed backslash from key
             .replace(/\\/g, '')
             .trim();
-        var value = colonifiedLine
-            .substring(colonifiedLine.search(/(?<!\\):/) + 1)
-            .trim();
+        var value = colonifiedLine.substring(colonifiedLine.search(/(?<!\\):/) + 1).trim();
         if (parsedOptions.parseNumber && isNumeric(value)) {
             value = +value;
         }
@@ -93,34 +64,29 @@ var propertiesToJSON = function (str, options) {
 };
 var treeCreationRecursiveFn = function (keys, value, result) {
     var key = keys[0];
+    key = key.replace(/\[\d*?\]/g, '');
     if (keys.length === 1) {
-        if (
-        // @ts-ignore
-        typeof result[key] !== null && // @ts-ignore
-            typeof result[key] === 'object' &&
-            typeof value === 'string') {
+        if (result[key] &&
+            result[key].constructor === Object &&
+            (typeof value === 'string' || typeof value === 'number')) {
             console.warn("key missing for value ->", value);
             console.warn('The value will have empty string as a key'); // @ts-ignore
             result[key][''] = value; // @ts-ignore
         }
-        else
+        else {
             result[key] = value;
+        }
     }
     else {
         var obj = {};
-        // since typeof null === "object" we check for null also https://stackoverflow.com/a/8511350/9740955
-        if (
-        // @ts-ignore
-        typeof result[key] === 'object' && // @ts-ignore
-            !Array.isArray(result[key]) && // @ts-ignore
-            result[key] !== null)
+        if (result[key] && result[key].constructor === Object)
             // @ts-ignore
             obj = result[key];
         // @ts-ignore
-        else if (typeof result[key] === 'string') {
+        else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
             // @ts-ignore
-            obj = __assign({}, (result[key] !== undefined && { '': result[key] })); // @ts-ignore
+            obj = { '': result[key] }; // @ts-ignore
             console.warn("key missing for value ->", result[key]);
             console.warn('The value will have empty string as a key');
         }

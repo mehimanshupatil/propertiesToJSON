@@ -1,3 +1,4 @@
+// @ts-nocheck
 const defaultValue = (v: any, d: any) => (v === undefined ? d : v);
 
 const typesMap = {
@@ -21,15 +22,9 @@ function isNumeric(value: string | number): boolean {
 const propertiesToJSON = (str: string, options = defaults) => {
     const parsedOptions = {
         jsonAsString: defaultValue(options.jsonAsString, defaults.jsonAsString),
-        convertToJsonTree: defaultValue(
-            options.convertToJsonTree,
-            defaults.convertToJsonTree
-        ),
+        convertToJsonTree: defaultValue(options.convertToJsonTree, defaults.convertToJsonTree),
         parseNumber: defaultValue(options.parseNumber, defaults.parseNumber),
-        parseBooleanNullUndefined: defaultValue(
-            options.parseBooleanNullUndefined,
-            defaults.parseBooleanNullUndefined
-        ),
+        parseBooleanNullUndefined: defaultValue(options.parseBooleanNullUndefined, defaults.parseBooleanNullUndefined),
     };
     const jsonObj = str
         // Concat lines that end with '\'.
@@ -37,9 +32,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
         // Split by line breaks.
         .split('\n')
         // Remove commented lines:
-        .filter((line) =>
-            /(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line
-        )
+        .filter((line) => (/(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line))
         // Create the JSON:
         .reduce((obj, line) => {
             // Replace only '=' that are not escaped with '\' to handle separator inside key
@@ -51,9 +44,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
                 .replace(/\\/g, '')
                 .trim();
 
-            let value = colonifiedLine
-                .substring(colonifiedLine.search(/(?<!\\):/) + 1)
-                .trim() as string | number;
+            let value = colonifiedLine.substring(colonifiedLine.search(/(?<!\\):/) + 1).trim() as string | number;
 
             if (parsedOptions.parseNumber && isNumeric(value)) {
                 value = +value;
@@ -68,7 +59,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
                 return obj;
             }
 
-            let keys = key.split('.');
+            const keys = key.split('.');
             return treeCreationRecursiveFn(keys, value, obj);
         }, {});
 
@@ -76,40 +67,34 @@ const propertiesToJSON = (str: string, options = defaults) => {
     return jsonObj;
 };
 
-const treeCreationRecursiveFn = function (
-    keys: string[],
-    value: string | number,
-    result: object
-) {
-    const key = keys[0];
+const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
+    let key = keys[0];
+
+    key = key.replace(/\[\d*?\]/g, '');
+
     if (keys.length === 1) {
         if (
-            // @ts-ignore
-            typeof result[key] !== null && // @ts-ignore
-            typeof result[key] === 'object' &&
-            typeof value === 'string'
+            result[key] &&
+            result[key].constructor === Object &&
+            (typeof value === 'string' || typeof value === 'number')
         ) {
             console.warn(`key missing for value ->`, value);
             console.warn('The value will have empty string as a key'); // @ts-ignore
             result[key][''] = value; // @ts-ignore
-        } else result[key] = value;
+        } else {
+            result[key] = value;
+        }
     } else {
         let obj = {};
 
-        // since typeof null === "object" we check for null also https://stackoverflow.com/a/8511350/9740955
-        if (
-            // @ts-ignore
-            typeof result[key] === 'object' && // @ts-ignore
-            !Array.isArray(result[key]) && // @ts-ignore
-            result[key] !== null
-        )
+        if (result[key] && result[key].constructor === Object)
             // @ts-ignore
             obj = result[key];
         // @ts-ignore
-        else if (typeof result[key] === 'string') {
+        else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
             // @ts-ignore
-            obj = { ...(result[key] !== undefined && { '': result[key] }) }; // @ts-ignore
+            obj = { '': result[key] }; // @ts-ignore
             console.warn(`key missing for value ->`, result[key]);
             console.warn('The value will have empty string as a key');
         }
