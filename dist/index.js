@@ -30,8 +30,8 @@ var propertiesToJSON = function (str, options) {
         .replace(/\\\n( )*/g, '')
         // Split by line breaks.
         .split('\n')
-        // Remove commented lines:
-        .filter(function (line) { return (/(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line); })
+        // Remove commented lines and empty lines
+        .filter(function (line) { return (!line || /(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line); })
         // Create the JSON:
         .reduce(function (obj, line) {
         // Replace only '=' that are not escaped with '\' to handle separator inside key
@@ -47,11 +47,9 @@ var propertiesToJSON = function (str, options) {
             value = +value;
         }
         else if (parsedOptions.parseBooleanNullUndefined) {
-            // @ts-ignore
             value = value in typesMap ? typesMap[value] : value;
         }
         if (!parsedOptions.convertToJsonTree) {
-            // @ts-ignore
             obj[key] = value;
             return obj;
         }
@@ -64,14 +62,18 @@ var propertiesToJSON = function (str, options) {
 };
 var treeCreationRecursiveFn = function (keys, value, result) {
     var key = keys[0];
-    key = key.replace(/\[\d*?\]/g, '');
+    var regex = /\[(\d)*?\]/;
+    if (key.match(regex)) {
+        console.log("object", key.match(regex)[1]);
+    }
+    // key = key.replace(regex, '');
     if (keys.length === 1) {
         if (result[key] &&
             result[key].constructor === Object &&
             (typeof value === 'string' || typeof value === 'number')) {
             console.warn("key missing for value ->", value);
-            console.warn('The value will have empty string as a key'); // @ts-ignore
-            result[key][''] = value; // @ts-ignore
+            console.warn('The value will have empty string as a key');
+            result[key][''] = value;
         }
         else {
             result[key] = value;
@@ -79,18 +81,15 @@ var treeCreationRecursiveFn = function (keys, value, result) {
     }
     else {
         var obj = {};
+        console.log("keys", keys[1]);
         if (result[key] && result[key].constructor === Object)
-            // @ts-ignore
             obj = result[key];
-        // @ts-ignore
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
-            // @ts-ignore
-            obj = { '': result[key] }; // @ts-ignore
+            obj = { '': result[key] };
             console.warn("key missing for value ->", result[key]);
             console.warn('The value will have empty string as a key');
         }
-        // @ts-ignore
         result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
     }
     return result;
