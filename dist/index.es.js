@@ -67,7 +67,7 @@ var treeCreationRecursiveFn = function (keys, value, result) {
         if (key.match(regexG)) {
             var indexs = (_a = key.match(regexG)) === null || _a === void 0 ? void 0 : _a.map(function (x) { return +x.match(regex)[1]; });
             key = key.replace(regexG, '');
-            result[key] = arrayRecursiveFn(indexs, value, []);
+            result[key] = arrayRecursiveFn(indexs, value, result[key] || []);
         }
         else if (result[key] &&
             result[key].constructor === Object &&
@@ -107,7 +107,7 @@ var arrayRecursiveFn = function (indexes, value, result) {
         result[index] = value;
     }
     else {
-        var obj = [];
+        var obj = result[index] || [];
         result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
     }
     return result;

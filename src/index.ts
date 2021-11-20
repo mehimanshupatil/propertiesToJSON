@@ -75,7 +75,7 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
         if (key.match(regexG)) {
             const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
             key = key.replace(regexG, '');
-            result[key] = arrayRecursiveFn(indexs, value, []);
+            result[key] = arrayRecursiveFn(indexs, value, result[key] || []);
         } else if (
             result[key] &&
             result[key].constructor === Object &&
@@ -115,7 +115,7 @@ const arrayRecursiveFn = function (indexes, value, result) {
     if (indexes.length === 1) {
         result[index] = value;
     } else {
-        let obj = [];
+        let obj = result[index] || [];
         result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
     }
     return result;
