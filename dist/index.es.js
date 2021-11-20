@@ -58,15 +58,18 @@ var propertiesToJSON = function (str, options) {
         return JSON.stringify(jsonObj);
     return jsonObj;
 };
+var regexG = /\[(\d)*?\]/g;
+var regex = /\[(\d)*?\]/;
 var treeCreationRecursiveFn = function (keys, value, result) {
+    var _a, _b;
     var key = keys[0];
-    var regex = /\[(\d)*?\]/;
-    if (key.match(regex)) {
-        console.log("object", key.match(regex)[1]);
-    }
-    // key = key.replace(regex, '');
     if (keys.length === 1) {
-        if (result[key] &&
+        if (key.match(regexG)) {
+            var indexs = (_a = key.match(regexG)) === null || _a === void 0 ? void 0 : _a.map(function (x) { return +x.match(regex)[1]; });
+            key = key.replace(regexG, '');
+            result[key] = arrayRecursiveFn(indexs, value, []);
+        }
+        else if (result[key] &&
             result[key].constructor === Object &&
             (typeof value === 'string' || typeof value === 'number')) {
             console.warn("key missing for value ->", value);
@@ -79,7 +82,6 @@ var treeCreationRecursiveFn = function (keys, value, result) {
     }
     else {
         var obj = {};
-        console.log("keys", keys[1]);
         if (result[key] && result[key].constructor === Object)
             obj = result[key];
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
@@ -88,7 +90,25 @@ var treeCreationRecursiveFn = function (keys, value, result) {
             console.warn("key missing for value ->", result[key]);
             console.warn('The value will have empty string as a key');
         }
-        result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+        if (key.match(regexG)) {
+            var indexs = (_b = key.match(regexG)) === null || _b === void 0 ? void 0 : _b.map(function (x) { return +x.match(regex)[1]; });
+            key = key.replace(regexG, '');
+            var val = treeCreationRecursiveFn(keys.slice(1), value, obj);
+            result[key] = arrayRecursiveFn(indexs, val, []);
+        }
+        else
+            result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+    }
+    return result;
+};
+var arrayRecursiveFn = function (indexes, value, result) {
+    var index = indexes[0];
+    if (indexes.length === 1) {
+        result[index] = value;
+    }
+    else {
+        var obj = [];
+        result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
     }
     return result;
 };

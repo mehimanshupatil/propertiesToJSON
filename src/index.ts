@@ -65,16 +65,18 @@ const propertiesToJSON = (str: string, options = defaults) => {
     return jsonObj;
 };
 
+const regexG = /\[(\d)*?\]/g;
+const regex = /\[(\d)*?\]/;
+
 const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
     let key = keys[0];
-    const regex = /\[(\d)*?\]/;
-    if (key.match(regex)) {
-        console.log(`object`, key.match(regex)[1]);
-    }
-    // key = key.replace(regex, '');
 
     if (keys.length === 1) {
-        if (
+        if (key.match(regexG)) {
+            const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
+            key = key.replace(regexG, '');
+            result[key] = arrayRecursiveFn(indexs, value, []);
+        } else if (
             result[key] &&
             result[key].constructor === Object &&
             (typeof value === 'string' || typeof value === 'number')
@@ -87,7 +89,7 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
         }
     } else {
         let obj = {};
-        console.log(`keys`, keys[1]);
+
         if (result[key] && result[key].constructor === Object) obj = result[key];
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
@@ -97,7 +99,24 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
             console.warn('The value will have empty string as a key');
         }
 
-        result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+        if (key.match(regexG)) {
+            const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
+            key = key.replace(regexG, '');
+            const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
+            result[key] = arrayRecursiveFn(indexs, val, []);
+        } else result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+    }
+    return result;
+};
+
+const arrayRecursiveFn = function (indexes, value, result) {
+    let index = indexes[0];
+
+    if (indexes.length === 1) {
+        result[index] = value;
+    } else {
+        let obj = [];
+        result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
     }
     return result;
 };

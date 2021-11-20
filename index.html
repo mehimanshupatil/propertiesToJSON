@@ -24,14 +24,14 @@
     </style>
 </head>
 
-<body class="d-flex flex-column vh-100 p-3 overflow-hidden" onload="run({ convertToJsonTree:false,
+<body class="d-flex flex-column vh-100 p-3 overflow-hidden" onload="run({ convertToJsonTree:true,
             parseNumber:false,
             parseBooleanNullUndefined:false})">
     <h1>Convert Java properties to JSON Object</h1>
     <div class="row flex-grow-1 justify-content-center">
         <div class="col-lg-5 overflow-auto">
             <textarea class="w-100 h-100" id="inputTxt">
-# You are reading the ".properties" file.&#13;&#10;complexObject.booleans.trueValue=True&#13;&#10;complexObject.booleans.falseValue=false&#13;&#10;complexObject.numbers.integerValue=11&#13;&#10;complexObject.numbers.doubleValue=11.0&#13;&#10;complexObject.text=text &#13;&#10;simpleText=text2&#13;&#10;complexObject.nullValue=null&#13;&#10;complexObject.empty=</textarea>
+# You are reading the ".properties" file.&#13;&#10;complexObject.booleans.trueValue=True&#13;&#10;complexObject.booleans.falseValue=false&#13;&#10;complexObject.numbers.integerValue=11&#13;&#10;complexObject.numbers.doubleValue=11.0&#13;&#10;complexObject.text=text &#13;&#10;simpleText=text2&#13;&#10;complexObject.nullValue=null&#13;&#10;complexObject.empty= &#13;&#10;complexObject.a[1][2]=True </textarea>
         </div>
         <div class="col-lg-2 d-flex justify-content-center align-items-center flex-column gap-3">
             <div>
@@ -100,7 +100,7 @@
             run(obj);
         }
         window.change = change;
-        window.run = change;
+        window.run = run;
     </script>
 </body>
 
