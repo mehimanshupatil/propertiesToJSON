@@ -71,10 +71,11 @@ const regex = /\[(\d)*?\]/;
 const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
     let key = keys[0];
 
+    const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
+    if (indexs) key = key.replace(regexG, '');
+
     if (keys.length === 1) {
-        if (key.match(regexG)) {
-            const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
-            key = key.replace(regexG, '');
+        if (indexs) {
             result[key] = arrayRecursiveFn(indexs, value, result[key] || []);
         } else if (
             result[key] &&
@@ -98,12 +99,9 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
             console.warn(`key missing for value ->`, result[key]);
             console.warn('The value will have empty string as a key');
         }
-
-        if (key.match(regexG)) {
-            const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
-            key = key.replace(regexG, '');
+        if (indexs) {
             const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
-            result[key] = arrayRecursiveFn(indexs, val, []);
+            result[key] = arrayRecursiveFn(indexs, val, result[key] || []);
         } else result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
     }
     return result;
@@ -111,12 +109,24 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
 
 const arrayRecursiveFn = function (indexes, value, result) {
     let index = indexes[0];
-
     if (indexes.length === 1) {
+        if (result[index])
+            console.warn('conflicting case occured in array creation one or more properties can be replaced');
         result[index] = value;
     } else {
         let obj = result[index] || [];
-        result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
+        if (result[index] && typeof result[index] === 'string') {
+            console.warn('conflicting case occured in array creation one or more properties can be replaced');
+            obj = [];
+        } else if (result[index] && result[index].constructor === Object) {
+            /**
+             * o.a[1].b=we 
+                o.a[1][2]=True 
+             */
+            console.warn('conflicting case occured as array is object key will be ""');
+            obj = [];
+            result[index][''] = arrayRecursiveFn(indexes.slice(1), value, obj);
+        } else result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
     }
     return result;
 };

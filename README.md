@@ -1,5 +1,7 @@
 Convert Java `.properties` files to JSON (using JavaScript).
 
+supports array creation.
+
 The function `propertiesToJSON` takes a string and returns
 a JavaScript object.
 
@@ -55,6 +57,13 @@ const props = fetch(propsFile)
 |     convertToJsonTree     |       false        | convert properties to json tree eg `a.b=c` to `{ "a.b": c }` if false or `{ "a": {"b": c} }` |
 |        parseNumber        |       false        |               parse value to number e.g - `a=1` to `{ a: "1" }` or `{ a: 1 }`                |
 | parseBooleanNullUndefined |       false        |                  parse string value of `null`, `true`, `false`, `undefined`                  |
+
+### Examples
+
+| Properties  | JSON                               |
+| ----------- | ---------------------------------- |
+| `a=b`       | `{ "a": "b" }`                     |
+| `a[1][1]=b` | `{ "a": [ null, [ null, "b" ] ] }` |
 
 ### How do I get it?
 
