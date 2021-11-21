@@ -34,6 +34,12 @@
 
         body {
             font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 8px;
+            height: 100vh;
+            overflow: hidden;
         }
 
         pre {
@@ -51,10 +57,11 @@
         .colsColoumn {
             display: grid;
             grid-template-columns: 2fr 1fr 2fr;
+            height: 100%;
         }
 
         .flex {
-            display: flex;
+            /* display: flex; */
         }
 
         .middleDiv {
@@ -72,6 +79,10 @@
         }
 
         @media only screen and (max-width: 600px) {
+            body {
+                overflow: auto;
+            }
+
             .colsColoumn {
                 display: grid;
                 grid-template-columns: auto;
