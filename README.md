@@ -69,6 +69,7 @@ const props = fetch(propsFile)
 
 1. `npm i https://github.com/mehimanshupatil/propertiesToJSON`
 
-### original code
+### reference
 
 [https://github.com/ryanpcmcquen/propertiesToJSON](https://github.com/ryanpcmcquen/propertiesToJSON)
+[https://github.com/jeanpaulattard/json-to-properties](https://github.com/jeanpaulattard/json-to-properties)
