@@ -1,7 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const filePath = path.join(__dirname, 'sample.properties');
-const propertiesToJSON = require('./dist/index.js');
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
+import propertiesToJSON from '../dist/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const filePath = path.join(__dirname, '../sample.properties');
 
 fs.readFile(filePath, { encoding: 'utf-8' }, (err, data) => {
     if (!err) {

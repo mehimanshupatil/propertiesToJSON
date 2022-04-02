@@ -34,9 +34,9 @@ fs.readFile(filePath, { encoding: 'utf-8' }, (err, data) => {
 ### Read a remote file in the browser:
 
 ```js
-const propertiesToJSON = require('properties-to-json');
+import propertiesToJSON from 'js-properties-to-json';
 
-const propsFile = new Request('https://gitcdn.link/repo/ryanpcmcquen/propertiesToJSON/master/sample.properties');
+const propsFile = new Request('<link-to-properties-file>');
 
 const props = fetch(propsFile)
     .then((response) => {
@@ -67,9 +67,13 @@ const props = fetch(propsFile)
 
 ### How do I get it?
 
-1. `npm i https://github.com/mehimanshupatil/propertiesToJSON`
+1. `npm i js-properties-to-json`
 
-### reference
+### online converter
+
+[link](https://mehimanshupatil.github.io/propertiesToJSON/)
+
+### inspiration
 
 [https://github.com/ryanpcmcquen/propertiesToJSON](https://github.com/ryanpcmcquen/propertiesToJSON)
 [https://github.com/jeanpaulattard/json-to-properties](https://github.com/jeanpaulattard/json-to-properties)
