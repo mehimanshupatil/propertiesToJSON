@@ -1,8 +1,9 @@
-const fs = require('fs'); 
-const path = require('path');
-const propertiesToJSON = require('js-properties-to-json')
-
-
+ import fs from 'fs';
+import path from 'path';
+import propertiesToJSON from 'js-properties-to-json'
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const filePath = path.join(__dirname, '../sample.properties');
 
 fs.readFile(filePath, { encoding: 'utf-8' }, (err, data) => {
