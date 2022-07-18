@@ -110,9 +110,18 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
 const arrayRecursiveFn = function (indexes, value, result) {
     let index = indexes[0];
     if (indexes.length === 1) {
-        if (result[index])
+
+        const prevVal = result[index]
+
+        if (prevVal && typeof prevVal !== 'object')
             console.warn('conflicting case occured in array creation one or more properties can be replaced');
-        result[index] = value;
+        if (prevVal && prevVal.constructor === Object && value.constructor === Object)
+            result[index] = { ...prevVal, ...value };
+        else if (prevVal && prevVal.constructor === Array && value.constructor === Array)
+            result[index] = [...prevVal, ...value];
+        else
+            result[index] = value;
+
     } else {
         let obj = result[index] || [];
         if (result[index] && typeof result[index] === 'string') {
