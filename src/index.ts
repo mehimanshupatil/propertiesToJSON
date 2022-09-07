@@ -108,7 +108,7 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
                 result[key] = arrayRecursiveFn(indexs, val, result[key] || []);
             }
             else {
-                result[key][index] = treeCreationRecursiveFn(keys.slice(1), value, result[key][index]);
+                result[key][index] = treeCreationRecursiveFn(keys.slice(1), value, result[key][index] || {});
             }
 
         } else result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);

@@ -1,6 +1,6 @@
 {
     "name": "js-properties-to-json",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "description": "Convert a Java properties file to JSON (with JavaScript).",
     "types": "./dist/types/index.d.ts",
     "main": "dist/index.cjs",
