@@ -68,8 +68,8 @@ const propertiesToJSON = (str: string, options = defaults) => {
     return jsonObj;
 };
 
-const regexG = /\[(\d)*?\]/g;
-const regex = /\[(\d)*?\]/;
+const regexG = /\[(\d+)\]/g;
+const regex = /\[(\d+)\]/;
 
 const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
     let key = keys[0];
@@ -122,8 +122,9 @@ const arrayRecursiveFn = function (indexes, value, result) {
 
         const prevVal = result[index]
 
-        if (prevVal && !isPlainObject(prevVal))
+        if (prevVal && !isPlainObject(prevVal)){
             console.warn('conflicting case occured in array creation one or more properties can be replaced');
+        }
         if (isPlainObject(prevVal) && isPlainObject(value))
             result[index] = { ...prevVal, ...value };
         else if (isArray(prevVal) && isArray(value))
