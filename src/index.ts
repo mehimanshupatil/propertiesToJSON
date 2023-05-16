@@ -1,4 +1,7 @@
 // @ts-nocheck
+import isPlainObject from 'lodash-es/isPlainObject'
+import isArray from 'lodash-es/isArray';
+
 const defaultValue = (v: any, d: any) => (v === undefined ? d : v);
 
 const typesMap = {
@@ -65,8 +68,8 @@ const propertiesToJSON = (str: string, options = defaults) => {
     return jsonObj;
 };
 
-const regexG = /\[(\d)*?\]/g;
-const regex = /\[(\d)*?\]/;
+const regexG = /\[(\d+)\]/g;
+const regex = /\[(\d+)\]/;
 
 const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
     let key = keys[0];
@@ -78,8 +81,7 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
         if (indexs) {
             result[key] = arrayRecursiveFn(indexs, value, result[key] || []);
         } else if (
-            result[key] &&
-            result[key].constructor === Object &&
+            isPlainObject(result[key]) &&
             (typeof value === 'string' || typeof value === 'number')
         ) {
             console.warn(`key missing for value ->`, value);
@@ -91,7 +93,7 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
     } else {
         let obj = {};
 
-        if (result[key] && result[key].constructor === Object) obj = result[key];
+        if (isPlainObject(result[key])) obj = result[key];
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
 
@@ -100,8 +102,15 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
             console.warn('The value will have empty string as a key');
         }
         if (indexs) {
-            const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
-            result[key] = arrayRecursiveFn(indexs, val, result[key] || []);
+            const index = indexs[0];
+            if (!result[key]) {
+                const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
+                result[key] = arrayRecursiveFn(indexs, val, result[key] || []);
+            }
+            else {
+                result[key][index] = treeCreationRecursiveFn(keys.slice(1), value, result[key][index] || {});
+            }
+
         } else result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
     }
     return result;
@@ -110,15 +119,29 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
 const arrayRecursiveFn = function (indexes, value, result) {
     let index = indexes[0];
     if (indexes.length === 1) {
-        if (result[index])
+
+        const prevVal = result[index]
+
+        if (prevVal && !isPlainObject(prevVal)){
             console.warn('conflicting case occured in array creation one or more properties can be replaced');
-        result[index] = value;
+        }
+        if (isPlainObject(prevVal) && isPlainObject(value))
+            result[index] = { ...prevVal, ...value };
+        else if (isArray(prevVal) && isArray(value))
+            result[index] = [...prevVal, ...value];
+        else
+            try {
+                result[index] = value;
+            } catch (e) {
+                console.warn(e)
+            }
+
     } else {
         let obj = result[index] || [];
         if (result[index] && typeof result[index] === 'string') {
             console.warn('conflicting case occured in array creation one or more properties can be replaced');
             obj = [];
-        } else if (result[index] && result[index].constructor === Object) {
+        } else if (isPlainObject(result[index])) {
             /**
              * o.a[1].b=we 
                 o.a[1][2]=True 

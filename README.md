@@ -22,7 +22,7 @@ a JavaScript object.
 const fs = require('fs');
 const path = require('path');
 const filePath = path.join(__dirname, 'sample.properties');
-const propertiesToJSON = require('properties-to-json');
+const propertiesToJSON = require('properties-to-json');;
 
 fs.readFile(filePath, { encoding: 'utf-8' }, (err, data) => {
     if (!err) {
@@ -76,3 +76,4 @@ const props = fetch(propsFile)
 ### inspiration
 
 [https://github.com/ryanpcmcquen/propertiesToJSON](https://github.com/ryanpcmcquen/propertiesToJSON)
+[https://github.com/jeanpaulattard/json-to-properties](https://github.com/jeanpaulattard/json-to-properties)
