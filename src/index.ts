@@ -43,11 +43,21 @@ const propertiesToJSON = (str: string, options = defaults) => {
             const key = colonifiedLine
                 // Extract key from index 0 to first not escaped colon index
                 .substring(0, colonifiedLine.search(/(?<!\\):/))
+                // Unescape Unicode
+                .replace(/\\u([0-9A-F]{4})/g, (s, u) => String.fromCharCode(parseInt(u, 16)))
                 // Remove not needed backslash from key
-                .replace(/\\/g, '')
+                .replace(/\\([^\\])/g, '$1')
+                .replace(/\\\\/g, '\\')
                 .trim();
 
-            let value = colonifiedLine.substring(colonifiedLine.search(/(?<!\\):/) + 1).trim() as string | number;
+            let value: string | number = colonifiedLine
+                .substring(colonifiedLine.search(/(?<!\\):/) + 1)
+                // Unescape Unicode
+                .replace(/\\u([0-9A-F]{4})/g, (s, u) => String.fromCharCode(parseInt(u, 16)))
+                // Remove not needed backslash from key
+                .replace(/\\([^\\])/g, '$1')
+                .replace(/\\\\/g, '\\')
+                .trim();
 
             if (parsedOptions.parseNumber && isNumeric(value)) {
                 value = +value;
