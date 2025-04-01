@@ -11,6 +11,11 @@ const typesMap = {
     null: null,
 };
 
+type ValueType = string | number | typeof typesMap[keyof typeof typesMap];
+type KeyValType = { [key: string]: ValueType };
+type NestableValueType = ValueType | NestableValueType[] | { [key: string]: NestableValueType };
+type NestedKeyValType = { [key: string]: NestableValueType };
+
 const defaults = {
     jsonAsString: false,
     convertToJsonTree: false,
@@ -18,11 +23,18 @@ const defaults = {
     parseBooleanNullUndefined: false,
 };
 
+interface Options {
+    jsonAsString?: boolean,
+    convertToJsonTree?: boolean,
+    parseNumber?: boolean,
+    parseBooleanNullUndefined?: boolean,
+};
+
 function isNumeric(value: string | number): boolean {
     return value != null && value !== '' && !isNaN(Number(value.toString()));
 }
 
-const propertiesToJSON = (str: string, options = defaults) => {
+const propertiesToJSON = (str: string, options: Options = defaults): NestedKeyValType | string => {
     const parsedOptions = {
         jsonAsString: defaultValue(options.jsonAsString, defaults.jsonAsString),
         convertToJsonTree: defaultValue(options.convertToJsonTree, defaults.convertToJsonTree),
@@ -37,7 +49,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
         // Remove commented lines and empty lines
         .filter((line) => (!line || /(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line))
         // Create the JSON:
-        .reduce((obj, line) => {
+        .reduce((obj: NestedKeyValType, line) => {
             // Replace only '=' that are not escaped with '\' to handle separator inside key
             const colonifiedLine = line.replace(/(?<!\\)=/, ':');
             const key = colonifiedLine
@@ -50,7 +62,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
                 .replace(/\\\\/g, '\\')
                 .trim();
 
-            let value: string | number = colonifiedLine
+            let value: ValueType = colonifiedLine
                 .substring(colonifiedLine.search(/(?<!\\):/) + 1)
                 // Unescape Unicode
                 .replace(/\\u([0-9A-F]{4})/g, (s, u) => String.fromCharCode(parseInt(u, 16)))
@@ -62,7 +74,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
             if (parsedOptions.parseNumber && isNumeric(value)) {
                 value = +value;
             } else if (parsedOptions.parseBooleanNullUndefined) {
-                value = value in typesMap ? typesMap[value] : value;
+                value = value in typesMap ? typesMap[value as keyof typeof typesMap] : value;
             }
 
             if (!parsedOptions.convertToJsonTree) {
@@ -72,7 +84,7 @@ const propertiesToJSON = (str: string, options = defaults) => {
 
             const keys = key.split('.');
             return treeCreationRecursiveFn(keys, value, obj);
-        }, {});
+        }, {} as NestedKeyValType);
 
     if (parsedOptions.jsonAsString) return JSON.stringify(jsonObj);
     return jsonObj;
@@ -81,10 +93,10 @@ const propertiesToJSON = (str: string, options = defaults) => {
 const regexG = /\[(\d+)\]/g;
 const regex = /\[(\d+)\]/;
 
-const treeCreationRecursiveFn = function (keys: string[], value: string | number, result: object) {
+const treeCreationRecursiveFn = function (keys: string[], value: ValueType, result: object) {
     let key = keys[0];
 
-    const indexs = key.match(regexG)?.map((x) => +x.match(regex)[1]);
+    const indexs = key.match(regexG)?.map((x) => +x.match(regex)![1]);
     if (indexs) key = key.replace(regexG, '');
 
     if (keys.length === 1) {
@@ -126,13 +138,13 @@ const treeCreationRecursiveFn = function (keys: string[], value: string | number
     return result;
 };
 
-const arrayRecursiveFn = function (indexes, value, result) {
+const arrayRecursiveFn = function (indexes: number[], value: ValueType, result: object) {
     let index = indexes[0];
     if (indexes.length === 1) {
 
-        const prevVal = result[index]
+        const prevVal = result[index];
 
-        if (prevVal && !isPlainObject(prevVal)){
+        if (prevVal && !isPlainObject(prevVal)) {
             console.warn('conflicting case occured in array creation one or more properties can be replaced');
         }
         if (isPlainObject(prevVal) && isPlainObject(value))
@@ -143,7 +155,7 @@ const arrayRecursiveFn = function (indexes, value, result) {
             try {
                 result[index] = value;
             } catch (e) {
-                console.warn(e)
+                console.warn(e);
             }
 
     } else {
