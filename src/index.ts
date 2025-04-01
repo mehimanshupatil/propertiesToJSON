@@ -1,6 +1,6 @@
 // @ts-nocheck
-import isPlainObject from 'lodash-es/isPlainObject'
-import isArray from 'lodash-es/isArray';
+const isPlainObject = (o: any) => typeof o === "object" && o.__proto__ === Object.prototype;
+const isArray = Array.isArray;
 
 const defaultValue = (v: any, d: any) => (v === undefined ? d : v);
 
