@@ -225,6 +225,26 @@ describe('options.convertToJsonTree', () => {
         expect(result.a[0]).toBe('x');
         expect(result.a[2]).toBe('z');
     });
+
+    it('does not throw when array element is later used as an object (bug 1)', () => {
+        // test[0]=haha sets an array element, then test[0].ohno=oops tries to nest inside it
+        expect(() =>
+            propertiesToJSON('test[0]=haha\ntest[0].ohno=oops', { convertToJsonTree: true })
+        ).not.toThrow();
+    });
+
+    it('converts array element to object preserving primitive under "" when nested key follows (bug 1)', () => {
+        const result = propertiesToJSON('test[0]=haha\ntest[0].ohno=oops', { convertToJsonTree: true }) as any;
+        expect(result.test[0]['ohno']).toBe('oops');
+        expect(result.test[0]['']).toBe('haha');
+    });
+
+    it('converts array to object preserving elements under numeric string keys when dot key follows (bug 2)', () => {
+        // test[0]=haha sets an array, then test.ohno=oops should merge rather than discard the array
+        const result = propertiesToJSON('test[0]=haha\ntest.ohno=oops', { convertToJsonTree: true }) as any;
+        expect(result.test['0']).toBe('haha');
+        expect(result.test['ohno']).toBe('oops');
+    });
 });
 
 describe('input validation', () => {

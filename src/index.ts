@@ -127,10 +127,16 @@ const treeCreationRecursiveFn = function (keys: string[], value: ValueType, resu
 
         if (isPlainObject(result[key])) obj = result[key] as NestedKeyValType;
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
-            // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
+            // conflicting case: a=b \n a.c=d → a: { '': 'b', c: 'd' }
             obj = { '': result[key] as ValueType };
             console.warn(`key missing for value ->`, result[key]);
             console.warn('The value will have empty string as a key');
+        } else if (Array.isArray(result[key])) {
+            // conflicting case: a[0]=b \n a.c=d — convert array to object using numeric string keys
+            obj = Object.fromEntries(
+                (result[key] as NestableValueType[]).map((v, i) => [String(i), v])
+            );
+            console.warn(`conflicting case: key '${key}' was an array, converting to object`);
         }
         if (indexes) {
             const index = indexes[0];
@@ -138,11 +144,19 @@ const treeCreationRecursiveFn = function (keys: string[], value: ValueType, resu
                 const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
                 result[key] = arrayRecursiveFn(indexes, val, (result[key] as NestableValueType[]) || []);
             } else {
-                (result[key] as NestedKeyValType[])[index] = treeCreationRecursiveFn(
-                    keys.slice(1),
-                    value,
-                    ((result[key] as NestableValueType[])[index] as NestedKeyValType) || {}
-                );
+                const arr = result[key] as NestableValueType[];
+                const existingVal = arr[index];
+                let subObj: NestedKeyValType;
+                if (isPlainObject(existingVal)) {
+                    subObj = existingVal as NestedKeyValType;
+                } else if (existingVal !== undefined) {
+                    // conflicting case: a[0]=b \n a[0].c=d — preserve primitive under '' key
+                    subObj = { '': existingVal as ValueType };
+                    console.warn(`conflicting case: array[${index}] was a primitive, converting to object`);
+                } else {
+                    subObj = {};
+                }
+                arr[index] = treeCreationRecursiveFn(keys.slice(1), value, subObj);
             }
         } else {
             result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
