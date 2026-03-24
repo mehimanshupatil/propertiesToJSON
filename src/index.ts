@@ -1,78 +1,88 @@
-// @ts-nocheck
-const isPlainObject = (o: any) => typeof o === "object" && o.__proto__ === Object.prototype;
-const isArray = Array.isArray;
+import { isPlainObject } from 'es-toolkit';
 
-const defaultValue = (v: any, d: any) => (v === undefined ? d : v);
+export interface Options {
+    jsonAsString?: boolean;
+    convertToJsonTree?: boolean;
+    parseNumber?: boolean;
+    parseBooleanNullUndefined?: boolean;
+}
+
+const defaultValue = <T>(v: T | undefined, d: T): T => (v === undefined ? d : v);
 
 const typesMap = {
     false: false,
     true: true,
     undefined: undefined,
     null: null,
-};
+} as const;
 
-type ValueType = string | number | typeof typesMap[keyof typeof typesMap];
-type KeyValType = { [key: string]: ValueType };
+type ValueType = string | number | boolean | null | undefined;
 type NestableValueType = ValueType | NestableValueType[] | { [key: string]: NestableValueType };
 type NestedKeyValType = { [key: string]: NestableValueType };
 
-const defaults = {
+const defaults: Required<Options> = {
     jsonAsString: false,
     convertToJsonTree: false,
     parseNumber: false,
     parseBooleanNullUndefined: false,
 };
 
-interface Options {
-    jsonAsString?: boolean,
-    convertToJsonTree?: boolean,
-    parseNumber?: boolean,
-    parseBooleanNullUndefined?: boolean,
-};
-
 function isNumeric(value: string | number): boolean {
-    return value != null && value !== '' && !isNaN(Number(value.toString()));
+    if (value === '') return false;
+    const n = Number(value);
+    return !isNaN(n) && isFinite(n);
 }
 
+const escapeMap: Record<string, string> = {
+    t: '\t',
+    n: '\n',
+    r: '\r',
+    f: '\f',
+    '\\': '\\',
+};
+
+const unescape = (s: string): string =>
+    s
+        // Unescape Unicode sequences (case-insensitive hex digits)
+        .replace(/\\u([0-9A-Fa-f]{4})/g, (_, u) => String.fromCharCode(parseInt(u, 16)))
+        // Unescape named sequences (\t, \n, \r, \f, \\) then strip remaining backslashes
+        .replace(/\\(.)/g, (_, c) => escapeMap[c] ?? c);
+
 const propertiesToJSON = (str: string, options: Options = defaults): NestedKeyValType | string => {
+    if (typeof str !== 'string') {
+        throw new TypeError(`propertiesToJSON: expected a string, got ${typeof str}`);
+    }
+
     const parsedOptions = {
         jsonAsString: defaultValue(options.jsonAsString, defaults.jsonAsString),
         convertToJsonTree: defaultValue(options.convertToJsonTree, defaults.convertToJsonTree),
         parseNumber: defaultValue(options.parseNumber, defaults.parseNumber),
         parseBooleanNullUndefined: defaultValue(options.parseBooleanNullUndefined, defaults.parseBooleanNullUndefined),
     };
+
     const jsonObj = str
-        // Concat lines that end with '\'.
-        .replace(/\\\n( )*/g, '')
-        // Split by line breaks.
+        // Normalize line endings (CRLF and CR → LF)
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        // Concat lines that end with '\'
+        .replace(/\\\n\s*/g, '')
+        // Split by line breaks
         .split('\n')
-        // Remove commented lines and empty lines
-        .filter((line) => (!line || /(\#|\!)/.test(line.replace(/\s/g, '').slice(0, 1)) ? false : line))
-        // Create the JSON:
+        // Remove commented lines (starting with # or !) and empty lines
+        .filter((line) => line && !/^\s*[#!]/.test(line))
+        // Create the JSON
         .reduce((obj: NestedKeyValType, line) => {
-            // Replace only '=' that are not escaped with '\' to handle separator inside key
-            const colonifiedLine = line.replace(/(?<!\\)=/, ':');
-            const key = colonifiedLine
-                // Extract key from index 0 to first not escaped colon index
-                .substring(0, colonifiedLine.search(/(?<!\\):/))
-                // Unescape Unicode
-                .replace(/\\u([0-9A-F]{4})/g, (s, u) => String.fromCharCode(parseInt(u, 16)))
-                // Remove not needed backslash from key
-                .replace(/\\([^\\])/g, '$1')
-                .replace(/\\\\/g, '\\')
-                .trim();
+            // Find the first unescaped = or : separator
+            const sepIndex = line.search(/(?<!\\)[=:]/);
+            if (sepIndex === -1) {
+                obj[unescape(line.trim())] = '';
+                return obj;
+            }
 
-            let value: ValueType = colonifiedLine
-                .substring(colonifiedLine.search(/(?<!\\):/) + 1)
-                // Unescape Unicode
-                .replace(/\\u([0-9A-F]{4})/g, (s, u) => String.fromCharCode(parseInt(u, 16)))
-                // Remove not needed backslash from key
-                .replace(/\\([^\\])/g, '$1')
-                .replace(/\\\\/g, '\\')
-                .trim();
+            const key = unescape(line.substring(0, sepIndex).trim());
+            let value: ValueType = unescape(line.substring(sepIndex + 1).trim());
 
-            if (parsedOptions.parseNumber && isNumeric(value)) {
-                value = +value;
+            if (parsedOptions.parseNumber && isNumeric(value as string)) {
+                value = +(value as string);
             } else if (parsedOptions.parseBooleanNullUndefined) {
                 value = value in typesMap ? typesMap[value as keyof typeof typesMap] : value;
             }
@@ -93,63 +103,65 @@ const propertiesToJSON = (str: string, options: Options = defaults): NestedKeyVa
 const regexG = /\[(\d+)\]/g;
 const regex = /\[(\d+)\]/;
 
-const treeCreationRecursiveFn = function (keys: string[], value: ValueType, result: object) {
+const treeCreationRecursiveFn = function (keys: string[], value: ValueType, result: NestedKeyValType): NestedKeyValType {
     let key = keys[0];
 
-    const indexs = key.match(regexG)?.map((x) => +x.match(regex)![1]);
-    if (indexs) key = key.replace(regexG, '');
+    const indexes = key.match(regexG)?.map((x) => +x.match(regex)![1]);
+    if (indexes) key = key.replace(regexG, '');
 
     if (keys.length === 1) {
-        if (indexs) {
-            result[key] = arrayRecursiveFn(indexs, value, result[key] || []);
+        if (indexes) {
+            result[key] = arrayRecursiveFn(indexes, value, (result[key] as NestableValueType[]) || []);
         } else if (
             isPlainObject(result[key]) &&
             (typeof value === 'string' || typeof value === 'number')
         ) {
             console.warn(`key missing for value ->`, value);
             console.warn('The value will have empty string as a key');
-            result[key][''] = value;
+            (result[key] as NestedKeyValType)[''] = value;
         } else {
             result[key] = value;
         }
     } else {
-        let obj = {};
+        let obj: NestedKeyValType = {};
 
-        if (isPlainObject(result[key])) obj = result[key];
+        if (isPlainObject(result[key])) obj = result[key] as NestedKeyValType;
         else if (typeof result[key] === 'string' || typeof result[key] === 'number') {
             // conflicting case: a=b \n a.c=d then o/p will be a: { '': 'b', c: 'd' }
-
-            obj = { '': result[key] };
+            obj = { '': result[key] as ValueType };
             console.warn(`key missing for value ->`, result[key]);
             console.warn('The value will have empty string as a key');
         }
-        if (indexs) {
-            const index = indexs[0];
+        if (indexes) {
+            const index = indexes[0];
             if (!result[key]) {
                 const val = treeCreationRecursiveFn(keys.slice(1), value, obj);
-                result[key] = arrayRecursiveFn(indexs, val, result[key] || []);
+                result[key] = arrayRecursiveFn(indexes, val, (result[key] as NestableValueType[]) || []);
+            } else {
+                (result[key] as NestedKeyValType[])[index] = treeCreationRecursiveFn(
+                    keys.slice(1),
+                    value,
+                    ((result[key] as NestableValueType[])[index] as NestedKeyValType) || {}
+                );
             }
-            else {
-                result[key][index] = treeCreationRecursiveFn(keys.slice(1), value, result[key][index] || {});
-            }
-
-        } else result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+        } else {
+            result[key] = treeCreationRecursiveFn(keys.slice(1), value, obj);
+        }
     }
     return result;
 };
 
-const arrayRecursiveFn = function (indexes: number[], value: ValueType, result: object) {
-    let index = indexes[0];
+const arrayRecursiveFn = function (indexes: number[], value: NestableValueType, result: NestableValueType[]): NestableValueType[] {
+    const index = indexes[0];
     if (indexes.length === 1) {
-
         const prevVal = result[index];
 
-        if (prevVal && !isPlainObject(prevVal)) {
-            console.warn('conflicting case occured in array creation one or more properties can be replaced');
+        if (prevVal !== undefined && !isPlainObject(prevVal)) {
+            console.warn('conflicting case occurred in array creation one or more properties can be replaced');
         }
         if (isPlainObject(prevVal) && isPlainObject(value))
-            result[index] = { ...prevVal, ...value };
-        else if (isArray(prevVal) && isArray(value))
+            result[index] = { ...prevVal, ...(value as NestedKeyValType) };
+        else if (Array.isArray(prevVal) && Array.isArray(value))
             result[index] = [...prevVal, ...value];
         else
             try {
@@ -157,21 +169,22 @@ const arrayRecursiveFn = function (indexes: number[], value: ValueType, result: 
             } catch (e) {
                 console.warn(e);
             }
-
     } else {
-        let obj = result[index] || [];
+        let obj = (result[index] as NestableValueType[]) || [];
         if (result[index] && typeof result[index] === 'string') {
-            console.warn('conflicting case occured in array creation one or more properties can be replaced');
+            console.warn('conflicting case occurred in array creation one or more properties can be replaced');
             obj = [];
         } else if (isPlainObject(result[index])) {
             /**
-             * o.a[1].b=we 
-                o.a[1][2]=True 
+             * o.a[1].b=we
+             * o.a[1][2]=True
              */
-            console.warn('conflicting case occured as array is object key will be ""');
+            console.warn('conflicting case occurred as array is object key will be ""');
             obj = [];
-            result[index][''] = arrayRecursiveFn(indexes.slice(1), value, obj);
-        } else result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
+            (result[index] as NestedKeyValType)[''] = arrayRecursiveFn(indexes.slice(1), value, obj);
+        } else {
+            result[index] = arrayRecursiveFn(indexes.slice(1), value, obj);
+        }
     }
     return result;
 };

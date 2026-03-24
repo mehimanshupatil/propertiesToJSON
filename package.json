@@ -2,11 +2,12 @@
     "name": "js-properties-to-json",
     "version": "0.1.0",
     "description": "Convert a Java properties file to JSON (with JavaScript).",
-    "types": "./dist/types/index.d.ts",
+    "types": "./dist/index.d.ts",
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "require": "./dist/index.cjs",
             "import": "./dist/index.mjs"
         }
@@ -16,11 +17,11 @@
     ],
     "scripts": {
         "serve": "serve ./",
-        "build": "rollup  --config  --bundleConfigAsCjs && tsc --emitDeclarationOnly",
-        "test": "node ./test/test.js  ",
-        "watch": "onchange \"src/**/*.*\" -v -- npm run buildTest",
-        "buildTest": "npm run build && npm run test",
-        "deploy": "npm run build && gh-pages -d ./"
+        "build": "vite build",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "watch": "onchange \"src/**/*.*\" -v -- pnpm run buildTest",
+        "buildTest": "pnpm run build && pnpm run test"
     },
     "repository": {
         "type": "git",
@@ -39,14 +40,15 @@
     },
     "homepage": "https://mehimanshupatil.github.io/propertiesToJSON/",
     "devDependencies": {
-        "@rollup/plugin-node-resolve": "^15.0.2",
-        "@rollup/plugin-typescript": "^11.1.1",
-        "@types/node": "^17.0.23",
-        "gh-pages": "^5.0.0",
+        "@types/node": "^24.12.0",
         "onchange": "^7.1.0",
-        "rollup": "^3.21.8",
-        "serve": "^14.2.0",
-        "tslib": "^2.3.1",
-        "typescript": "^5.0.4"
+        "serve": "^14.2.6",
+        "typescript": "^6.0.2",
+        "vite": "^8.0.2",
+        "vite-plugin-dts": "^4.5.4",
+        "vitest": "^4.1.1"
+    },
+    "dependencies": {
+        "es-toolkit": "^1.45.1"
     }
 }

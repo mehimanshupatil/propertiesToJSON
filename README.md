@@ -1,79 +1,100 @@
-Convert Java `.properties` files to JSON (using JavaScript).
+Convert Java `.properties` files to JSON (using JavaScript/TypeScript).
 
-supports array creation.
+Supports nested objects, arrays, Unicode escape sequences, and type coercion.
 
-The function `propertiesToJSON` takes a string and returns
-a JavaScript object.
+## Install
 
-### use
+```sh
+# pnpm
+pnpm add js-properties-to-json
 
-```
- propertiesToJSON(data, {
-                jsonAsString: false,
-                convertToJsonTree : false,
-                parseNumber:false,
-                parseBooleanNullUndefined:false,
-            });
+# npm
+npm i js-properties-to-json
 ```
 
-### Read a local file in `node`:
+## Usage
+
+```ts
+import propertiesToJSON from 'js-properties-to-json';
+// or CommonJS:
+// const propertiesToJSON = require('js-properties-to-json');
+
+const result = propertiesToJSON(`
+# comment
+server.host=localhost
+server.port=8080
+`);
+// { 'server.host': 'localhost', 'server.port': '8080' }
+```
+
+### Read a local file in Node.js
 
 ```js
-const fs = require('fs');
-const path = require('path');
-const filePath = path.join(__dirname, 'sample.properties');
-const propertiesToJSON = require('properties-to-json');;
+import fs from 'fs';
+import propertiesToJSON from 'js-properties-to-json';
 
-fs.readFile(filePath, { encoding: 'utf-8' }, (err, data) => {
-    if (!err) {
-        console.log(propertiesToJSON(data));
-    }
-});
+const data = fs.readFileSync('app.properties', 'utf-8');
+console.log(propertiesToJSON(data, { convertToJsonTree: true, parseNumber: true }));
 ```
 
-### Read a remote file in the browser:
+### Read a remote file in the browser
 
 ```js
 import propertiesToJSON from 'js-properties-to-json';
 
-const propsFile = new Request('<link-to-properties-file>');
-
-const props = fetch(propsFile)
-    .then((response) => {
-        return response.text();
-    })
-    .then((text) => {
-        const propsText = propertiesToJSON(text);
-        console.log(propsText);
-        return propsText;
-    });
+const text = await fetch('/app.properties').then((r) => r.text());
+console.log(propertiesToJSON(text));
 ```
 
-### Available options
+## Options
 
-|          Option           | Default&#160;value |                                         Description                                          |
-| :-----------------------: | :----------------: | :------------------------------------------------------------------------------------------: |
-|       jsonAsString        |       false        |                                   return json as a string                                    |
-|     convertToJsonTree     |       false        | convert properties to json tree eg `a.b=c` to `{ "a.b": c }` if false or `{ "a": {"b": c} }` |
-|        parseNumber        |       false        |               parse value to number e.g - `a=1` to `{ a: "1" }` or `{ a: 1 }`                |
-| parseBooleanNullUndefined |       false        |                  parse string value of `null`, `true`, `false`, `undefined`                  |
+```ts
+import propertiesToJSON, { type Options } from 'js-properties-to-json';
+```
 
-### Examples
+| Option                      | Default | Description                                                                                  |
+| :-------------------------: | :-----: | :------------------------------------------------------------------------------------------: |
+| `jsonAsString`              | `false` | Return the result as a JSON string instead of an object                                      |
+| `convertToJsonTree`         | `false` | Convert dotted keys into nested objects — e.g. `a.b=c` → `{ a: { b: "c" } }`               |
+| `parseNumber`               | `false` | Coerce numeric strings to numbers — e.g. `port=8080` → `{ port: 8080 }`                     |
+| `parseBooleanNullUndefined` | `false` | Coerce `"true"`, `"false"`, `"null"`, `"undefined"` to their JS equivalents (case-sensitive) |
 
-| Properties  | JSON                               |
-| ----------- | ---------------------------------- |
-| `a=b`       | `{ "a": "b" }`                     |
-| `a[1][1]=b` | `{ "a": [ null, [ null, "b" ] ] }` |
+## Examples
 
-### How do I get it?
+| Properties         | JSON                               |
+| ------------------ | ---------------------------------- |
+| `a=b`              | `{ "a": "b" }`                     |
+| `a:b`              | `{ "a": "b" }`                     |
+| `a = b`            | `{ "a": "b" }`                     |
+| `a[0]=x`           | `{ "a": ["x"] }`                   |
+| `a[1][1]=b`        | `{ "a": [null, [null, "b"]] }`     |
+| `a.b.c=d`          | `{ "a": { "b": { "c": "d" } } }` (requires `convertToJsonTree`) |
+| `k=\u00e9`         | `{ "k": "é" }`                     |
+| `k=hello\tworld`   | `{ "k": "hello\tworld" }`          |
 
-1. `npm i js-properties-to-json`
+## Supported escape sequences
 
-### online converter
+| Sequence      | Result                  |
+| ------------- | ----------------------- |
+| `\uXXXX`      | Unicode character (hex) |
+| `\t`          | Tab                     |
+| `\n`          | Newline                 |
+| `\r`          | Carriage return         |
+| `\f`          | Form feed               |
+| `\\`          | Literal backslash       |
+| `\=`, `\:`    | Literal `=` or `:` in a key |
 
-[link](https://mehimanshupatil.github.io/propertiesToJSON/)
+## Limitations
 
-### inspiration
+- Whitespace-only key separators (e.g. `key value`) are not supported — use `=` or `:`.
+- Inline comments (e.g. `key=value # comment`) are not supported; the `# comment` becomes part of the value.
+- `parseBooleanNullUndefined` is case-sensitive: `"True"` stays as a string.
 
-[https://github.com/ryanpcmcquen/propertiesToJSON](https://github.com/ryanpcmcquen/propertiesToJSON)
-[https://github.com/jeanpaulattard/json-to-properties](https://github.com/jeanpaulattard/json-to-properties)
+## Online converter
+
+[https://mehimanshupatil.github.io/propertiesToJSON/](https://mehimanshupatil.github.io/propertiesToJSON/)
+
+## Inspiration
+
+- [ryanpcmcquen/propertiesToJSON](https://github.com/ryanpcmcquen/propertiesToJSON)
+- [jeanpaulattard/json-to-properties](https://github.com/jeanpaulattard/json-to-properties)
