@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
-import dts from 'vite-plugin-dts';
 
 export default defineConfig({
     build: {
@@ -9,7 +8,6 @@ export default defineConfig({
             fileName: (format) => (format === 'es' ? 'index.mjs' : 'index.cjs'),
         },
     },
-    plugins: [dts({ outDir: 'dist' })],
     test: {
         include: ['test/**/*.test.ts'],
     },
