@@ -1,0 +1,4 @@
+[test/fixtures/*.properties]
+# Fixtures depend on exact white space (trailing spaces, tab and form feed lines)
+trim_trailing_whitespace = false
+insert_final_newline = false

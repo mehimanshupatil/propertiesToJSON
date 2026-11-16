@@ -264,3 +264,159 @@ describe('input validation', () => {
         expect(() => propertiesToJSON(null as unknown as string)).toThrow('got object');
     });
 });
+
+// Expected values below are the output of java.util.Properties.load (OpenJDK 17).
+// Section numbers refer to docs/java-properties-format.md. Never derive an expected
+// value from this parser's current output; run the input through Java instead.
+describe('java.util.Properties conformance', () => {
+    describe('§1 line terminators', () => {
+        it('treats CR, LF and CRLF as line terminators', () => {
+            expect(propertiesToJSON('a=1\r\nb=2\rc=3\n')).toEqual({ a: '1', b: '2', c: '3' });
+        });
+    });
+
+    describe('§2 blank lines', () => {
+        it('ignores whitespace-only lines', () => {
+            expect(propertiesToJSON('a=1\n   \nb=2\n')).toEqual({ a: '1', b: '2' });
+        });
+
+        it('ignores lines of tabs and form feeds', () => {
+            expect(propertiesToJSON('a=1\n\t\f \nb=2')).toEqual({ a: '1', b: '2' });
+        });
+    });
+
+    describe('§3 comment lines', () => {
+        it('does not continue a comment ending in backslash', () => {
+            expect(propertiesToJSON('# see \\\nkey=value\n')).toEqual({ key: 'value' });
+        });
+
+        it('does not continue a ! comment ending in backslash', () => {
+            expect(propertiesToJSON('! see \\\nkey=value')).toEqual({ key: 'value' });
+        });
+
+        it('keeps # inside a value', () => {
+            expect(propertiesToJSON('k=a # b')).toEqual({ k: 'a # b' });
+        });
+
+        it('treats # on a continuation line as value text', () => {
+            expect(propertiesToJSON('k=a\\\n# not comment')).toEqual({ k: 'a# not comment' });
+        });
+    });
+
+    describe('§4 line continuation', () => {
+        it('does not continue after an even number of backslashes', () => {
+            expect(propertiesToJSON('dir=C:\\\\\nport=8080\n')).toEqual({ dir: 'C:\\', port: '8080' });
+        });
+
+        it('continues after an odd number of backslashes', () => {
+            expect(propertiesToJSON('a=1\\\\\\\nb')).toEqual({ a: '1\\b' });
+        });
+
+        it('ends the logical line at an empty continuation line', () => {
+            expect(propertiesToJSON('a=1\\\n\nb=2\n')).toEqual({ a: '1', b: '2' });
+        });
+
+        it('drops a backslash at end of input', () => {
+            expect(propertiesToJSON('k=x\\')).toEqual({ k: 'x' });
+        });
+
+        it('joins the javadoc fruits example', () => {
+            expect(propertiesToJSON('fruits                           apple, banana, pear, \\\n                                 cantaloupe, watermelon, \\\n                                 kiwi, mango')).toEqual({ fruits: 'apple, banana, pear, cantaloupe, watermelon, kiwi, mango' });
+        });
+
+        it('continues a key across lines', () => {
+            expect(propertiesToJSON('ke\\\n  y=v')).toEqual({ key: 'v' });
+        });
+
+        it('treats # as a comment after a continuation that added nothing (JDK LineReader)', () => {
+            expect(propertiesToJSON('\\\n# x\na=1')).toEqual({ a: '1' });
+        });
+
+        it('yields an empty key for a lone backslash line at end of input (JDK LineReader)', () => {
+            expect(propertiesToJSON('a=1\n\\\n')).toEqual({ a: '1', '': '' });
+        });
+    });
+
+    describe('§5 key', () => {
+        it('treats \\\\ before = as an escaped backslash, not an escaped =', () => {
+            expect(propertiesToJSON('dir\\\\=x\n')).toEqual({ 'dir\\': 'x' });
+        });
+
+        it('allows escaped : and = in a key', () => {
+            expect(propertiesToJSON('\\:\\==x')).toEqual({ ':=': 'x' });
+        });
+
+        it('allows escaped spaces in a key', () => {
+            expect(propertiesToJSON('key\\ with\\ space=v')).toEqual({ 'key with space': 'v' });
+        });
+
+        it('ignores trailing white space after a lone key', () => {
+            expect(propertiesToJSON('cheeses   ')).toEqual({ cheeses: '' });
+        });
+
+        it('ignores leading tabs and form feeds before a key', () => {
+            expect(propertiesToJSON('\t\f a=1')).toEqual({ a: '1' });
+        });
+    });
+
+    describe('§6 separator', () => {
+        it('uses a single space as separator', () => {
+            expect(propertiesToJSON('fruits apple')).toEqual({ fruits: 'apple' });
+        });
+
+        it('uses runs of spaces as separator', () => {
+            expect(propertiesToJSON('fruits   apple banana')).toEqual({ fruits: 'apple banana' });
+        });
+
+        it('uses a tab as separator', () => {
+            expect(propertiesToJSON('fruits\tapple')).toEqual({ fruits: 'apple' });
+        });
+
+        it('skips spaces around =', () => {
+            expect(propertiesToJSON('Truth = Beauty')).toEqual({ Truth: 'Beauty' });
+        });
+
+        it('skips spaces before :', () => {
+            expect(propertiesToJSON('Truth                    :Beauty')).toEqual({ Truth: 'Beauty' });
+        });
+
+        it('consumes only one separator character', () => {
+            expect(propertiesToJSON('k==v')).toEqual({ k: '=v' });
+        });
+
+        it('consumes only one separator character after spaces', () => {
+            expect(propertiesToJSON('k = = v')).toEqual({ k: '= v' });
+        });
+
+        it('consumes only one separator character with mixed separators', () => {
+            expect(propertiesToJSON('k :  = v')).toEqual({ k: '= v' });
+        });
+    });
+
+    describe('§7 value', () => {
+        it('keeps trailing spaces in a value', () => {
+            expect(propertiesToJSON('greeting=hello   \n')).toEqual({ greeting: 'hello   ' });
+        });
+
+        it('keeps an escaped leading space in a value', () => {
+            expect(propertiesToJSON('k=\\ lead')).toEqual({ k: ' lead' });
+        });
+
+        it('keeps = and : inside a value', () => {
+            expect(propertiesToJSON('k=a=b:c')).toEqual({ k: 'a=b:c' });
+        });
+    });
+
+    describe('§8 escape sequences', () => {
+        it('drops the backslash before an unknown escape', () => {
+            expect(propertiesToJSON('k=\\b\\z\\"')).toEqual({ k: 'bz"' });
+        });
+
+        it('does not read an escaped backslash as the start of a unicode escape', () => {
+            expect(propertiesToJSON('k=\\\\u0041')).toEqual({ k: '\\u0041' });
+        });
+
+        // Java throws IllegalArgumentException for a malformed \uXXXX escape; we have not decided whether to match it.
+        it.todo('handles a malformed \\u escape such as \\u00G1');
+    });
+});

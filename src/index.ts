@@ -41,12 +41,121 @@ const escapeMap: Record<string, string> = {
     '\\': '\\',
 };
 
+// Single pass, so an escaped backslash is never re-read as the start of another escape (\\u0041 → A)
 const unescape = (s: string): string =>
-    s
-        // Unescape Unicode sequences (case-insensitive hex digits)
-        .replace(/\\u([0-9A-Fa-f]{4})/g, (_, u) => String.fromCharCode(parseInt(u, 16)))
-        // Unescape named sequences (\t, \n, \r, \f, \\) then strip remaining backslashes
-        .replace(/\\(.)/g, (_, c) => escapeMap[c] ?? c);
+    s.replace(/\\(u[0-9A-Fa-f]{4}|[^])/g, (_, c: string) =>
+        // Unicode sequence (case-insensitive hex digits), named sequence, or drop the backslash
+        c.length === 5 ? String.fromCharCode(parseInt(c.slice(1), 16)) : (escapeMap[c] ?? c)
+    );
+
+// Java treats space, tab and form feed as white space; line terminators are handled separately
+const isWhiteSpace = (c: string): boolean => c === ' ' || c === '\t' || c === '\f';
+
+/**
+ * Split input into logical lines. A port of OpenJDK 17's Properties.LineReader:
+ * skips blank and comment lines, and joins a line onto the next one only when it ends
+ * in an odd number of backslashes. See docs/java-properties-format.md §1–§4.
+ */
+const readLogicalLines = (str: string): string[] => {
+    const lines: string[] = [];
+    let line = '';
+    let skipWhiteSpace = true;
+    let appendedLineBegin = false;
+    let precedingBackslash = false;
+    let i = 0;
+
+    while (i < str.length) {
+        const c = str[i++];
+
+        if (skipWhiteSpace) {
+            if (isWhiteSpace(c)) continue;
+            // An empty line right after a continuation still ends the logical line
+            if (!appendedLineBegin && (c === '\r' || c === '\n')) continue;
+            skipWhiteSpace = false;
+            appendedLineBegin = false;
+        }
+
+        // Still on a new logical line (also true after a continuation that added nothing)
+        if (line === '' && (c === '#' || c === '!')) {
+            // Comment: consume the rest of the line, a trailing backslash does not continue it
+            while (i < str.length && str[i] !== '\r' && str[i] !== '\n') i++;
+            i++;
+            skipWhiteSpace = true;
+            continue;
+        }
+
+        if (c !== '\n' && c !== '\r') {
+            line += c;
+            precedingBackslash = c === '\\' ? !precedingBackslash : false;
+            continue;
+        }
+
+        if (line === '') {
+            skipWhiteSpace = true;
+            continue;
+        }
+        if (i >= str.length) {
+            // Java returns here even when the backslash removal leaves an empty line,
+            // so a lone '\' + line terminator at the end of input yields the key ''
+            lines.push(precedingBackslash ? line.slice(0, -1) : line);
+            return lines;
+        }
+        if (precedingBackslash) {
+            // Continuation: drop the backslash and the next line's leading white space
+            line = line.slice(0, -1);
+            skipWhiteSpace = true;
+            appendedLineBegin = true;
+            precedingBackslash = false;
+            if (c === '\r' && str[i] === '\n') i++;
+        } else {
+            lines.push(line);
+            line = '';
+            skipWhiteSpace = true;
+        }
+    }
+
+    // A backslash at the end of input is dropped
+    if (line !== '') lines.push(precedingBackslash ? line.slice(0, -1) : line);
+    return lines;
+};
+
+/**
+ * Split a logical line into its raw key and value, following java.util.Properties.load:
+ * the key ends at the first unescaped '=', ':' or white space, then white space and at most
+ * one '=' or ':' are skipped. See docs/java-properties-format.md §5–§7.
+ */
+const splitKeyValue = (line: string): [string, string] => {
+    let keyLen = 0;
+    let valueStart = line.length;
+    let hasSep = false;
+    let precedingBackslash = false;
+
+    while (keyLen < line.length) {
+        const c = line[keyLen];
+        if ((c === '=' || c === ':') && !precedingBackslash) {
+            valueStart = keyLen + 1;
+            hasSep = true;
+            break;
+        }
+        if (isWhiteSpace(c) && !precedingBackslash) {
+            valueStart = keyLen + 1;
+            break;
+        }
+        precedingBackslash = c === '\\' ? !precedingBackslash : false;
+        keyLen++;
+    }
+
+    while (valueStart < line.length) {
+        const c = line[valueStart];
+        if (!isWhiteSpace(c)) {
+            if (hasSep || (c !== '=' && c !== ':')) break;
+            hasSep = true;
+        }
+        valueStart++;
+    }
+
+    return [line.substring(0, keyLen), line.substring(valueStart)];
+};
 
 const propertiesToJSON = (str: string, options: Options = defaults): NestedKeyValType | string => {
     if (typeof str !== 'string') {
@@ -60,26 +169,12 @@ const propertiesToJSON = (str: string, options: Options = defaults): NestedKeyVa
         parseBooleanNullUndefined: defaultValue(options.parseBooleanNullUndefined, defaults.parseBooleanNullUndefined),
     };
 
-    const jsonObj = str
-        // Normalize line endings (CRLF and CR → LF)
-        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        // Concat lines that end with '\'
-        .replace(/\\\n\s*/g, '')
-        // Split by line breaks
-        .split('\n')
-        // Remove commented lines (starting with # or !) and empty lines
-        .filter((line) => line && !/^\s*[#!]/.test(line))
+    const jsonObj = readLogicalLines(str)
         // Create the JSON
         .reduce((obj: NestedKeyValType, line) => {
-            // Find the first unescaped = or : separator
-            const sepIndex = line.search(/(?<!\\)[=:]/);
-            if (sepIndex === -1) {
-                obj[unescape(line.trim())] = '';
-                return obj;
-            }
-
-            const key = unescape(line.substring(0, sepIndex).trim());
-            let value: ValueType = unescape(line.substring(sepIndex + 1).trim());
+            const [rawKey, rawValue] = splitKeyValue(line);
+            const key = unescape(rawKey);
+            let value: ValueType = unescape(rawValue);
 
             if (parsedOptions.parseNumber && isNumeric(value as string)) {
                 value = +(value as string);

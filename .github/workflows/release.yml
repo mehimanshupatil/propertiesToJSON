@@ -26,11 +26,19 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      - name: Set up Java (reference parser for test/java-compat.test.ts)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
       - name: Install dependencies
         run: pnpm install
 
       - name: Test
         run: pnpm test
+        env:
+          REQUIRE_JAVA: 1
 
       - name: Build
         run: pnpm run build
